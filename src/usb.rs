@@ -174,9 +174,9 @@ impl<PINS> Usb<USB, PINS> {
 
     fn tx(&mut self) {
 
-        hprintln!("TX");
-        //self.pma.pma_area.set_u16(6, 0); // Set COUNT0_RX to 0.
-        //self.usb.ep0r.toggle_tx_out();
+        //hprintln!("TX");
+        self.pma.pma_area.set_u16(6, 0); // Set COUNT0_RX to 0.
+        self.usb.ep0r.toggle_tx_out();
     }
 
     pub fn interrupt(&mut self) {
@@ -217,7 +217,7 @@ impl<PINS> Usb<USB, PINS> {
                         let rx_count =  self.pma.pma_area.get_u16(6) & 0x03FF;
                         //self.usb.ep0r.write(|w| w.ctr_rx().clear_bit());
                         //hprintln!("E0: {:x}", self.usb.ep0r.read().bits()).unwrap();
-                        self.usb.ep0r.toggle_tx_stall();
+                        self.usb.ep0r.toggle_out();
                         //self.usb.ep0r.toggle_rx();
                         self.usb.ep0r.clear_ctr_rx();
                         //hprintln!("E0: {:x}", self.usb.ep0r.read().bits()).unwrap();

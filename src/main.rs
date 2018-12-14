@@ -74,7 +74,6 @@ fn main() -> ! {
         let clocks = rcc.constrain().cfgr.sysclk(48.mhz())
                                             .hclk(48.mhz())
                                             .pclk(48.mhz())
-                                            .enable_hsi48(true)
                                             .freeze();
         hprintln!("sysclk: {}", clocks.sysclk().0);
         hprintln!("hclk: {}", clocks.hclk().0);

@@ -14,9 +14,11 @@ pub use hal::stm32::{USB, RCC, CRS};
 mod pma;
 mod constants;
 mod usb_ext;
+mod descriptors;
 
 use self::constants::UsbRequest;
 use self::usb_ext::UsbEpExt;
+use self::descriptors::*;
 
 #[derive(Debug)]
 pub enum UsbState {
@@ -231,6 +233,7 @@ impl<PINS> Usb<USB, PINS> {
                 } else {
                     self.tx();
                     //self.usb.ep0r.write(|w| w.ctr_tx().clear_bit());
+                    hprintln!("Foo: {:?}", FOO).unwrap();
                 }
             }
             //hprintln!("EP: {}", ep);
@@ -238,4 +241,17 @@ impl<PINS> Usb<USB, PINS> {
         }
     }
 }
+
+#[derive(Debug)]
+#[repr(C, packed)]
+struct Foo {
+    bar: u8,
+    baz: u8,
+    bat: u8,
+    zee: u8,
+    zip: u8,
+    yak: u8,
+}
+
+const FOO : Foo = Foo { bar: 0xff, baz: 0x00, bat: 0x55, zee: 0xaa, zip: 0xff, yak: 0x00 };
 

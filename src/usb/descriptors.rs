@@ -1,6 +1,7 @@
 use core::mem::transmute;
 
 #[derive(Debug, Copy, Clone)]
+#[repr(C, packed)]
 pub struct Device {
     bLength: u8,
     bDescriptorType: u8,
@@ -18,4 +19,10 @@ pub struct Device {
     bNumConfigurations: u8,
 }
 
-
+impl Device {
+    pub const fn bcdUSB(& self, bcdUSB: u16) -> Self {
+        self.bcdUSB = bcdUSB;
+        *self
+        //Device { bcdUSB: bcdUSB }
+    }
+}

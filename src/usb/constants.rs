@@ -52,8 +52,9 @@ impl From<u8> for UsbDescriptorType {
 #[derive(Debug, Copy, Clone)]
 pub enum UsbDeviceState {
     Disabled,
-    Disconnected,
-    Default,
+    Attached,
+    Powered,
+    Reset, // Default in the USB spec, reset makes more sense based on the desc IMO.
     Addressed,
     Configured,
     Suspended,

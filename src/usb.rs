@@ -12,11 +12,11 @@ pub use hal::stm32::{USB, RCC, CRS};
 
 //use pma::PMA;
 mod pma;
-mod constants;
+pub mod constants;
 mod usb_ext;
-mod descriptors;
+pub mod descriptors;
 
-use self::constants::UsbRequest;
+use self::constants::{UsbRequest,UsbRequestType};
 use self::usb_ext::UsbEpExt;
 use self::descriptors::*;
 
@@ -56,7 +56,6 @@ impl<PINS> Usb<USB, PINS> {
             let rcc = unsafe { &(*RCC::ptr()) };
             let pma = unsafe { &mut *PMA.get() };
             let crs = unsafe { &(*CRS::ptr()) };
-
 
             // Enable USB clock. and Clock recovery
 	    rcc.apb1enr.modify(|_, w| w.usbrst().set_bit().crsen().set_bit());	
@@ -112,9 +111,9 @@ impl<PINS> Usb<USB, PINS> {
     fn reset(&mut self) {
         // Init EP0
         self.pma.pma_area.set_u16(0, 0x40); // ADDR0_TX, buffer at offset 0x40 in PMA.
-        self.pma.pma_area.set_u16(2, 0);    // COUNT0_TX, 0 bytes in buffer
-        self.pma.pma_area.set_u16(4, 0x20); // ADDR0_RX, buffer at offset 0x20 in PMA.
-        self.pma.pma_area.set_u16(6, (0x8000 | ((MAX_PACKET_SIZE / 32) - 1) << 10) as u16); // COUNT0_RX, Set buffer count.
+        self.pma.pma_area.set_u16(1, 0);    // COUNT0_TX, 0 bytes in buffer
+        self.pma.pma_area.set_u16(2, 0x20); // ADDR0_RX, buffer at offset 0x20 in PMA.
+        self.pma.pma_area.set_u16(3, (0x8000 | ((MAX_PACKET_SIZE / 32) - 1) << 10) as u16); // COUNT0_RX, Set buffer count.
 
         self.usb.ep0r.write(|w| unsafe {
             w.ep_type().bits(0b01) // Ctrl endpoint
@@ -138,27 +137,28 @@ impl<PINS> Usb<USB, PINS> {
     }
 
     fn rx(&mut self) {
-        let request16 = self.pma.pma_area.get_u16(0x20); // First u16 in RX buffer 
-        let value = self.pma.pma_area.get_u16(0x22);   // Second u16 in RX buffer
-        let index = self.pma.pma_area.get_u16(0x24);   // Third...
-        let length = self.pma.pma_area.get_u16(0x26);  // Fourth...
+        let request16 = self.pma.pma_area.get_u16(0x20/2); // First u16 in RX buffer 
+        let value = self.pma.pma_area.get_u16(0x22/2);   // Second u16 in RX buffer
+        let index = self.pma.pma_area.get_u16(0x24/2);   // Third...
+        let length = self.pma.pma_area.get_u16(0x26/2);  // Fourth...
 
-        //hprintln!("request16: {:x}, value: {:x}, index: {:x}, length: {:x}", request16, value, index, length).unwrap();
+        //hprintln!("r: {:x}, v: {:x}, i: {:x}, l: {:x}", request16, value, index, length).unwrap();
         // set COUNT0_RX to max acceptable size.
-        self.pma.pma_area.set_u16(6, (0x8000 | ((MAX_PACKET_SIZE / 32) - 1) << 10) as u16);
+        self.pma.pma_area.set_u16(3, (0x8000 | ((MAX_PACKET_SIZE / 32) - 1) << 10) as u16);
 
         let request_type = (request16 & 0xff) as u8;
+        let request_type = UsbRequestType::from(request_type);
         let request = UsbRequest::from(((request16 & 0xff00) >> 8) as u8);
 
         match (request_type, request) {
-            (0x00, UsbRequest::GetStatus) => {
+            (UsbRequestType::OutStandardDevice, UsbRequest::GetStatus) => {
                 self.usb.ep0r.toggle_tx_stall();
-                //hprintln!("GET STATUS: {:x}", self.usb.ep0r.read().bits() as u16).unwrap();
+                hprintln!("GET STATUS: {:x}", self.usb.ep0r.read().bits() as u16).unwrap();
             }
 
-            (0x00, UsbRequest::SetAddress) => {
+            (UsbRequestType::OutStandardDevice, UsbRequest::SetAddress) => {
 
-                hprintln!("Set Address: {:x}", value as u8);
+                hprintln!("Set Address: {:x}", value as u16).unwrap();
                 self.usb
                 .daddr
                 .modify(|_, w| unsafe { w.add().bits(value as u8) });
@@ -166,9 +166,13 @@ impl<PINS> Usb<USB, PINS> {
                 self.usb.ep0r.toggle_0();
             }
 
+            (UsbRequestType::InStandardDevice, UsbRequest::GetDescriptor) => {
+                hprintln!("r: {:x}, v: {:x}, i: {:x}, l: {:x}", request16, value, index, length).unwrap();
+            }
+
             // Fall though
             (_, _) => {
-                hprintln!("RequestType: {:x}, Request: {:x}", request_type, request16).unwrap();
+                hprintln!("RequestType: {:?}, Request: {:?}", request_type, request).unwrap();
             }
         }
 
@@ -176,8 +180,8 @@ impl<PINS> Usb<USB, PINS> {
 
     fn tx(&mut self) {
 
-        //hprintln!("TX");
-        self.pma.pma_area.set_u16(6, 0); // Set COUNT0_RX to 0.
+        hprintln!("TX").unwrap();
+        self.pma.pma_area.set_u16(3, 0); // Set COUNT0_RX to 0.
         self.usb.ep0r.toggle_tx_out();
     }
 
@@ -212,46 +216,49 @@ impl<PINS> Usb<USB, PINS> {
            
             if ep == 0 {
                 if dir {
-                    //self.rx();
+                    self.rx();
                     //self.usb.ep0r.write(|w| w.ctr_rx().clear_bit());
                     // Setup packet?
-                    if self.usb.ep0r.read().setup().bit_is_set() {
-                        let rx_count =  self.pma.pma_area.get_u16(6) & 0x03FF;
-                        //self.usb.ep0r.write(|w| w.ctr_rx().clear_bit());
-                        //hprintln!("E0: {:x}", self.usb.ep0r.read().bits()).unwrap();
-                        self.usb.ep0r.toggle_out();
-                        //self.usb.ep0r.toggle_rx();
-                        self.usb.ep0r.clear_ctr_rx();
-                        //hprintln!("E0: {:x}", self.usb.ep0r.read().bits()).unwrap();
-                        //hprintln!("S! {}", rx_count).unwrap();
-
-                    } else if self.usb.ep0r.read().ctr_rx().bit_is_set() {
-                        self.usb.ep0r.write(|w| w.ctr_rx().clear_bit());
-                        let rx_count =  self.pma.pma_area.get_u16(6) & 0x03FF;
-                        hprintln!("DATA OUT! {}", rx_count).unwrap();
-                    }
+//                    if self.usb.ep0r.read().setup().bit_is_set() {
+//                        let rx_count =  self.pma.pma_area.get_u16(3) & 0x03FF;
+//                        //hprintln!("E0: {:x} {}", self.usb.ep0r.read().bits(), rx_count).unwrap();
+//                        //self.usb.ep0r.write(|w| w.ctr_rx().clear_bit());
+//                        //self.usb.ep0r.toggle_out();
+//                        //self.usb.ep0r.toggle_tx();
+//                        //self.usb.ep0r.toggle_tx_stall();
+//                        //self.usb.ep0r.toggle_0();
+//                        self.usb.ep0r.toggle_rx();
+//                        self.usb.ep0r.clear_ctr_rx();
+//                        //hprintln!("S! {}", rx_count).unwrap();
+//
+//                    } else if self.usb.ep0r.read().ctr_rx().bit_is_set() {
+//                        self.usb.ep0r.write(|w| w.ctr_rx().clear_bit());
+//                        let rx_count =  self.pma.pma_area.get_u16(3) & 0x03FF;
+//                        hprintln!("DATA OUT! {}", rx_count).unwrap();
+//                    }
+//                    self.pma
+//                        .pma_area.set_u16(3, (0x8000 | ((MAX_PACKET_SIZE / 32) - 1) << 10) as u16);
                 } else {
                     self.tx();
                     //self.usb.ep0r.write(|w| w.ctr_tx().clear_bit());
-                    hprintln!("Foo: {:?}", FOO).unwrap();
+                    //hprintln!("Foo: {:?}", FOO).unwrap();
                 }
             }
-            //hprintln!("EP: {}", ep);
+            //hprintln!("EP: {}", ep).unwrap();
             //self.do_work();
         }
     }
 }
 
-#[derive(Debug)]
-#[repr(C, packed)]
-struct Foo {
-    bar: u8,
-    baz: u8,
-    bat: u8,
-    zee: u8,
-    zip: u8,
-    yak: u8,
-}
-
-const FOO : Foo = Foo { bar: 0xff, baz: 0x00, bat: 0x55, zee: 0xaa, zip: 0xff, yak: 0x00 };
-
+//#[derive(Debug)]
+//#[repr(C, packed)]
+//struct Foo {
+//    bar: u8,
+//    baz: u8,
+//    bat: u8,
+//    zee: u8,
+//    zip: u8,
+//    yak: u8,
+//}
+//
+//const FOO : Foo = Foo { bar: 0xff, baz: 0x00, bat: 0x55, zee: 0xaa, zip: 0xff, yak: 0x00 };

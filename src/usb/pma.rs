@@ -14,8 +14,8 @@ pub struct PMA {
 
 impl PMA {
     pub fn zero(&mut self) {
-        for i in 0..256 {
-            self.pma_area.set_u16(i * 2, 0);
+        for i in 0..512 {
+            self.pma_area.set_u16(i, 0);
         }
     }
 }
@@ -29,20 +29,16 @@ impl Deref for PMA {
 
 #[repr(C)]
 pub struct PMA_Area {
-    // The PMA consists of 256 u16 words separated by u16 gaps, so lets
-    // represent that as 512 u16 words which we'll only use every other of.
     words: [VolatileCell<u16>; 512],
 }
 
 impl PMA_Area {
     // TODO: use operator overloading and just impl [] access, without double-counting
     pub fn get_u16(&self, offset: usize) -> u16 {
-        assert!((offset & 0x01) == 0);
         self.words[offset].get()
     }
 
     pub fn set_u16(&self, offset: usize, val: u16) {
-        assert!((offset & 0x01) == 0);
         self.words[offset].set(val);
     }
 

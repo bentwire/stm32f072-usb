@@ -11,8 +11,8 @@ extern crate panic_semihosting; // logs messages to the host stderr; requires a 
 extern crate stm32f0xx_hal as hal;
 extern crate stm32f0;
 
+use core::mem::size_of;
 use stm32f0::stm32f0x2;
-
 
 use hal::delay::Delay;
 use hal::gpio::*;
@@ -28,7 +28,6 @@ pub use hal::stm32::{Interrupt, EXTI, Peripherals, USB};
 
 use core::cell::RefCell;
 use core::ops::DerefMut;
-
 mod usb;
 
 // Make our LED globally available
@@ -43,9 +42,28 @@ static INT: Mutex<RefCell<Option<EXTI>>> = Mutex::new(RefCell::new(None));
 // Make USB Driver globally available
 static USBDEV: Mutex<RefCell<Option<usb::Usb<USB, (gpioa::PA11<Alternate<AF0>>, gpioa::PA12<Alternate<AF0>>)>>>> = Mutex::new(RefCell::new(None));
 
+//const DEV_DESC : usb::descriptors::Device = usb::descriptors::Device {
+//    bLength: size_of::<usb::descriptors::Device>() as u8,
+//    bDescriptorType: usb::constants::UsbDescriptorType::Device as u8,
+//    bcdUSB: 0x0200,
+//    bDeviceClass: 0x00,
+//    bDeviceSubClass: 0x00,
+//    bDeviceProtocol: 0x00,
+//    bMaxPacketSize0: 0x40, // 64 bytes
+//    idVendor: 1155,
+//    idProduct: 49389,
+//    bcdDevice: 0x0200,
+//    iManufacturer: 0x00,
+//    iProduct: 0x00,
+//    iSerialNumber: 0x00,
+//    bNumConfigurations: 0x01,
+//};
+
+const DEV_QUAL: usb::descriptors::DeviceQualifier = usb::descriptors::DeviceQualifier::new().bcdUSB(0x0000);
+
 #[entry]
 fn main() -> ! {
-    hprintln!("main()");
+    hprintln!("main()").unwrap();
     if let (Some(p), Some(cp)) = (Peripherals::take(), c_m_Peripherals::take()) {
         let gpioa = p.GPIOA.split();
         let gpioc = p.GPIOC.split();
@@ -53,6 +71,7 @@ fn main() -> ! {
         let exti = p.EXTI;
         let rcc = p.RCC;
 
+        hprintln!("{:?}", DEV_QUAL).unwrap();
         // Set HSI48 as clock source. Both prescalers to /1.
         rcc.cfgr.modify(|_, w| unsafe { w.sw().bits(0b11)
                                         .ppre().bits(0) 
@@ -75,9 +94,9 @@ fn main() -> ! {
                                             .hclk(48.mhz())
                                             .pclk(48.mhz())
                                             .freeze();
-        hprintln!("sysclk: {}", clocks.sysclk().0);
-        hprintln!("hclk: {}", clocks.hclk().0);
-        hprintln!("pclk: {}", clocks.pclk().0);
+        hprintln!("sysclk: {}", clocks.sysclk().0).unwrap();
+        hprintln!("hclk: {}", clocks.hclk().0).unwrap();
+        hprintln!("pclk: {}", clocks.pclk().0).unwrap();
         // Initialise delay provider
         let mut delay = Delay::new(cp.SYST, clocks);
 
@@ -112,7 +131,7 @@ fn main() -> ! {
         unsafe { nvic.set_priority(Interrupt::EXTI4_15, 0) };
         cortex_m::peripheral::NVIC::unpend(Interrupt::EXTI4_15);
         
-        hprintln!("init complete.");
+        hprintln!("init complete.").unwrap();
 
     }
     loop {
@@ -127,7 +146,7 @@ interrupt!(EXTI4_15, button_press);
 interrupt!(USB, usb_isr);
 
 fn usb_isr() {
-    //hprintln!("USB_ISR:");
+    //hprintln!("USB_ISR:").unwrap();
     cortex_m::interrupt::free(|cs| {
         if let (&mut Some(ref mut usb)) = (USBDEV.borrow(cs).borrow_mut().deref_mut()) {
             usb.interrupt();
@@ -137,7 +156,7 @@ fn usb_isr() {
 
 fn button_press() {
     // Enter critical section
-    hprintln!("BUTTON_PRESS");
+    hprintln!("BUTTON_PRESS").unwrap();
     cortex_m::interrupt::free(|cs| {
         // Obtain all Mutex protected resources
         if let (&mut Some(ref mut led), &mut Some(ref mut delay), &mut Some(ref mut exti)) = (
@@ -145,19 +164,19 @@ fn button_press() {
             DELAY.borrow(cs).borrow_mut().deref_mut(),
             INT.borrow(cs).borrow_mut().deref_mut(),
         ) {
-            hprintln!("Borrow OK!");
+            hprintln!("Borrow OK!").unwrap();
             // Turn on LED
             led.set_high();
 
-            hprintln!("Led ON OK!");
+            hprintln!("Led ON OK!").unwrap();
             // Wait a second
             delay.delay_ms(1_u16);
 
-            hprintln!("Delay OK!");
+            hprintln!("Delay OK!").unwrap();
             // Turn off LED
             led.set_low();
 
-            hprintln!("Led OFF OK!");
+            hprintln!("Led OFF OK!").unwrap();
             // Clear interrupt
             exti.pr.modify(|_, w| w.pif13().set_bit());
         }

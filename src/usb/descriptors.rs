@@ -1,5 +1,10 @@
 #![allow(non_snake_case)]
+#![allow(dead_code)]
+
 use core::mem::{size_of, transmute};
+use core::slice::*;
+use core::marker::Sized;
+
 use crate::usb::constants;
 
 #[derive(Debug, Copy, Clone)]
@@ -111,12 +116,36 @@ impl Device {
     }
 }
 
-impl From<[u8; size_of::<Device>()]> for Device {
-    #[inline]
-    fn from(b: [u8; size_of::<Device>()]) -> Self {
-        unsafe { transmute(b) }
-    }
-}
+//impl From<[u8; size_of::<Device>()]> for Device {
+//    #[inline]
+//    fn from(b: [u8; size_of::<Device>()]) -> Self {
+//        Self {
+//            
+//        }
+//        //unsafe { transmute(b) }
+//    }
+//}
+
+//unsafe fn as_u8_arry<T: Sized>(ptr: &T) -> &[u8]
+//    where T: Sized {
+//    from_raw_parts(
+//        (ptr as *const T) as *const u8,
+//        size_of::<T>())
+//}
+
+//impl From<Device> for &[u8] {
+//    #[inline]
+//    fn from(a: Device) -> &'static[u8] {
+//       unsafe { as_u8_arry(& a) }
+//    }
+//}
+
+//impl From<Device> for [u8; size_of::<Device>()] {
+//    #[inline]
+//    fn from(a: Device) -> [u8; size_of::<Device>()] {
+//       *as_u8_arry(&a) 
+//    }
+//}
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
@@ -172,6 +201,69 @@ pub struct Configuration { // Also other speed configuration.
     iConfiguration: u8,
     bmAttributes: u8,
     bMaxPower: u8,
+}
+
+impl Default for Configuration {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Configuration {
+    pub const fn new() -> Self {
+        Self {
+            bLength: size_of::<Configuration>() as u8,
+            bDescriptorType: constants::UsbDescriptorType::Configuration as u8,
+            wTotalLength: 0x0000,
+            bNumInterfaces: 0x00,
+            bConfigurationValue: 0x00,
+            iConfiguration: 0x00,
+            bmAttributes: 0x00,
+            bMaxPower: 0x00,
+        }
+    }
+
+    pub const fn wTotalLength(&self, wTotalLength: u16) -> Self {
+        Self {
+            wTotalLength,
+            ..*self
+        }
+    }
+
+    pub const fn bNumInterfaces(&self, bNumInterfaces: u8) -> Self {
+        Self {
+            bNumInterfaces,
+            ..*self
+        }
+    }
+
+    pub const fn bConfigurationValue(&self, bConfigurationValue: u8) -> Self {
+        Self {
+            bConfigurationValue,
+            ..*self
+        }
+    }
+
+    pub const fn iConfiguration(&self, iConfiguration: u8) -> Self {
+        Self {
+            iConfiguration,
+            ..*self
+        }
+    }
+
+    pub const fn bmAttributes(&self, bmAttributes: u8) -> Self {
+        Self {
+            bmAttributes,
+            ..*self
+        }
+    }
+
+    pub const fn bMaxPower(&self, bMaxPower: u8) -> Self {
+        Self {
+            bMaxPower,
+            ..*self
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]

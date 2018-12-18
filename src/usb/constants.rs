@@ -19,7 +19,44 @@ pub enum UsbRequest {
     SynchFrame = 0x0C,
 }
 
+#[repr(u8)]
+#[derive(Debug, Copy, Clone)]
+pub enum UsbRequestType {
+    OutStandardDevice    = 0b0_00_00000,
+    OutStandardInterface = 0b0_00_00001,
+    OutStandardEndpoint  = 0b0_00_00010,
+    OutStandardOther     = 0b0_00_00011,
+    OutClassDevice       = 0b0_01_00000,
+    OutClassInterface    = 0b0_01_00001,
+    OutClassEndpoint     = 0b0_01_00010,
+    OutClassOther        = 0b0_01_00011,
+    OutVendorDevice      = 0b0_10_00000,
+    OutVendorInterface   = 0b0_10_00001,
+    OutVendorEndpoint    = 0b0_10_00010,
+    OutVendorOther       = 0b0_10_00011,
+
+    InStandardDevice    = 0b1_00_00000,
+    InStandardInterface = 0b1_00_00001,
+    InStandardEndpoint  = 0b1_00_00010,
+    InStandardOther     = 0b1_00_00011,
+    InClassDevice       = 0b1_01_00000,
+    InClassInterface    = 0b1_01_00001,
+    InClassEndpoint     = 0b1_01_00010,
+    InClassOther        = 0b1_01_00011,
+    InVendorDevice      = 0b1_10_00000,
+    InVendorInterface   = 0b1_10_00001,
+    InVendorEndpoint    = 0b1_10_00010,
+    InVendorOther       = 0b1_10_00011,
+}
+
 impl From<u8> for UsbRequest {
+    #[inline]
+    fn from(b: u8) -> Self {
+        unsafe { transmute(b) }
+    }
+}
+
+impl From<u8> for UsbRequestType {
     #[inline]
     fn from(b: u8) -> Self {
         unsafe { transmute(b) }

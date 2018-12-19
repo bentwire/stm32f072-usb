@@ -58,7 +58,7 @@ impl<PINS> Usb<USB, PINS> {
             let crs = unsafe { &(*CRS::ptr()) };
 
             // Enable USB clock. and Clock recovery
-	    rcc.apb1enr.modify(|_, w| w.usbrst().set_bit().crsen().set_bit());	
+	    rcc.apb1enr.modify(|_, w| w.usben().set_bit().crsen().set_bit());	
 	    let _ = rcc.apb1enr.read(); // Delay
 
             // Initialize clock recovery

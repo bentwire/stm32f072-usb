@@ -6,9 +6,13 @@ use core::slice::*;
 use core::marker::Sized;
 
 use crate::usb::constants;
+//use crate::usb::macros;
+
+//use macros::show_streams;
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
+//#[show_streams]
 pub struct Device {
      bLength: u8,
      bDescriptorType: u8,

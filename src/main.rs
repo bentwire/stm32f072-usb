@@ -7,24 +7,33 @@
 // extern crate panic_itm; // logs messages over ITM; requires ITM support
 extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
 
-#[macro_use]
+
 extern crate stm32f0xx_hal as hal;
 extern crate stm32f0;
+extern crate embedded_hal;
 
 use core::mem::size_of;
 use stm32f0::stm32f0x2;
 
 use hal::delay::Delay;
+use hal::i2c::*;
 use hal::gpio::*;
 use hal::prelude::*;
 
 use cortex_m_semihosting::{debug, hprintln};
 use cortex_m::interrupt::Mutex;
 use cortex_m::peripheral::Peripherals as c_m_Peripherals;
+//use cortex_m_rt::{entry, interrupt};
 use cortex_m_rt::entry;
 
+use embedded_hal::blocking::i2c::Write;
+
 pub use hal::stm32;
-pub use hal::stm32::{Interrupt, EXTI, Peripherals, USB};
+pub use hal::stm32::{interrupt, Interrupt, EXTI, Peripherals, USB, I2C1};
+//pub use hal::stm32::*;
+
+use ssd1306::prelude::*;
+use ssd1306::Builder;
 
 use core::cell::RefCell;
 use core::ops::DerefMut;
@@ -66,6 +75,7 @@ fn main() -> ! {
     hprintln!("main()").unwrap();
     if let (Some(p), Some(cp)) = (Peripherals::take(), c_m_Peripherals::take()) {
         let gpioa = p.GPIOA.split();
+        let gpiob = p.GPIOB.split();
         let gpioc = p.GPIOC.split();
         let syscfg = p.SYSCFG_COMP;
         let exti = p.EXTI;
@@ -123,7 +133,23 @@ fn main() -> ! {
             *INT.borrow(cs).borrow_mut() = Some(exti);
             *USBDEV.borrow(cs).borrow_mut() = Some(usb);
         });
+        
+        // Configure I2C
+        let scl = gpiob.pb8
+            .into_alternate_af1()
+            .internal_pull_up(true)
+            .set_open_drain();
+        let sda = gpiob.pb9
+            .into_alternate_af1()
+            .internal_pull_up(true)
+            .set_open_drain();
 
+        let mut i2c = I2c::i2c1(p.I2C1, (scl, sda), 400.khz());
+
+        // Configure display
+        let mut disp: TerminalMode<_> = Builder::new().connect_i2c(i2c).into();
+
+        disp.print_char('A');
         // Enable EXTI IRQ, set prio 1 and clear any pending IRQs
         let mut nvic = cp.NVIC;
         nvic.enable(Interrupt::EXTI4_15);
@@ -140,12 +166,8 @@ fn main() -> ! {
 
 }
 
-/* Define an intterupt handler, i.e. function to call when exception occurs. Here if our external
- * interrupt trips the flash function which will be called */
-interrupt!(EXTI4_15, button_press);
-interrupt!(USB, usb_isr);
-
-fn usb_isr() {
+#[interrupt]
+fn USB() {
     //hprintln!("USB_ISR:").unwrap();
     cortex_m::interrupt::free(|cs| {
         if let (&mut Some(ref mut usb)) = (USBDEV.borrow(cs).borrow_mut().deref_mut()) {
@@ -154,7 +176,8 @@ fn usb_isr() {
     });
 }
 
-fn button_press() {
+#[interrupt]
+fn EXTI4_15() {
     // Enter critical section
     hprintln!("BUTTON_PRESS").unwrap();
     cortex_m::interrupt::free(|cs| {

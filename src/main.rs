@@ -26,12 +26,15 @@ use cortex_m::peripheral::Peripherals as c_m_Peripherals;
 //use cortex_m_rt::{entry, interrupt};
 use cortex_m_rt::entry;
 
-use embedded_hal::blocking::i2c::Write;
+//use embedded_hal::blocking::i2c::Write;
+use core::fmt::Write;
 
 pub use hal::stm32;
 pub use hal::stm32::{interrupt, Interrupt, EXTI, Peripherals, USB, I2C1};
 //pub use hal::stm32::*;
 
+use embedded_graphics::fonts::Font6x8;
+use embedded_graphics::prelude::*;
 use ssd1306::prelude::*;
 use ssd1306::Builder;
 
@@ -68,7 +71,7 @@ static USBDEV: Mutex<RefCell<Option<usb::Usb<USB, (gpioa::PA11<Alternate<AF0>>, 
 //    bNumConfigurations: 0x01,
 //};
 
-const DEV_QUAL: usb::descriptors::DeviceQualifier = usb::descriptors::DeviceQualifier::new().bcdUSB(0x0000);
+const DEV_QUAL: usb::descriptors::DeviceQualifier = usb::descriptors::DeviceQualifier::new().bcdUSB(0x0200);
 
 #[entry]
 fn main() -> ! {
@@ -126,14 +129,6 @@ fn main() -> ! {
         
         let mut usb = usb::Usb::usb(p.USB, (dm, dp));
 
-        // Move control over LED and DELAY and EXTI into global mutexes
-        cortex_m::interrupt::free(move |cs| {
-            *LED.borrow(cs).borrow_mut() = Some(led);
-            *DELAY.borrow(cs).borrow_mut() = Some(delay);
-            *INT.borrow(cs).borrow_mut() = Some(exti);
-            *USBDEV.borrow(cs).borrow_mut() = Some(usb);
-        });
-        
         // Configure I2C
         let scl = gpiob.pb8
             .into_alternate_af1()
@@ -147,9 +142,21 @@ fn main() -> ! {
         let mut i2c = I2c::i2c1(p.I2C1, (scl, sda), 400.khz());
 
         // Configure display
-        let mut disp: TerminalMode<_> = Builder::new().connect_i2c(i2c).into();
+        let mut disp: GraphicsMode<_> = Builder::new()
+            .with_size(DisplaySize::Display128x32)
+            .connect_i2c(i2c).into();
 
-        disp.print_char('A');
+        disp.init().unwrap();
+        disp.flush().unwrap();
+
+        // Move control over LED and DELAY and EXTI into global mutexes
+        cortex_m::interrupt::free(move |cs| {
+            *LED.borrow(cs).borrow_mut() = Some(led);
+            *DELAY.borrow(cs).borrow_mut() = Some(delay);
+            *INT.borrow(cs).borrow_mut() = Some(exti);
+            *USBDEV.borrow(cs).borrow_mut() = Some(usb);
+        });
+        
         // Enable EXTI IRQ, set prio 1 and clear any pending IRQs
         let mut nvic = cp.NVIC;
         nvic.enable(Interrupt::EXTI4_15);
@@ -159,11 +166,18 @@ fn main() -> ! {
         
         hprintln!("init complete.").unwrap();
 
+        disp.draw(
+            Font6x8::render_str("this is a test")
+            .with_stroke(Some(1u8.into()))
+            .into_iter(),);
+
+
+        disp.flush().unwrap();
+
     }
     loop {
         // your code goes here
     }
-
 }
 
 #[interrupt]
@@ -187,19 +201,19 @@ fn EXTI4_15() {
             DELAY.borrow(cs).borrow_mut().deref_mut(),
             INT.borrow(cs).borrow_mut().deref_mut(),
         ) {
-            hprintln!("Borrow OK!").unwrap();
+            //hprintln!("Borrow OK!").unwrap();
             // Turn on LED
             led.set_high();
 
-            hprintln!("Led ON OK!").unwrap();
+            //hprintln!("Led ON OK!").unwrap();
             // Wait a second
-            delay.delay_ms(1_u16);
+            delay.delay_ms(100_u16);
 
-            hprintln!("Delay OK!").unwrap();
+            //hprintln!("Delay OK!").unwrap();
             // Turn off LED
             led.set_low();
 
-            hprintln!("Led OFF OK!").unwrap();
+            //hprintln!("Led OFF OK!").unwrap();
             // Clear interrupt
             exti.pr.modify(|_, w| w.pif13().set_bit());
         }

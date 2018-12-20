@@ -32,11 +32,11 @@ impl Direction {
     }
 
     // This should be const-able!!!
-    pub fn from_bits(bits: u8) -> Self {
+    pub fn from_bits(bits: u8) -> Option<Self> {
         match (bits >> 7) & 0x01 {
-            0b0 => Direction::OUT,
-            0b1 => Direction::IN,
-            _ => Direction::IN
+            0b0 => Some(Direction::OUT),
+            0b1 => Some(Direction::IN),
+            _ => None
         }
     }
 }

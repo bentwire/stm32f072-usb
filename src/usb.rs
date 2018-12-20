@@ -145,7 +145,7 @@ impl<PINS> Usb<USB, PINS> {
         }
     }
 
-    fn parse_ctrl_request(&mut self) -> ((Direction, Type, Destination), UsbRequest, u16, u16, u16) {
+    fn parse_ctrl_request(&mut self) -> ((Option<Direction>, Type, Destination), UsbRequest, u16, u16, u16) {
         // Hard coded to ep0, fix this later
         let request16 = self.pma.pma_area.get_u16(0x20/2); // First u16 in RX buffer 
         let value = self.pma.pma_area.get_u16(0x22/2);   // Second u16 in RX buffer
@@ -168,12 +168,12 @@ impl<PINS> Usb<USB, PINS> {
         let (request_type, request, value, index, length) = self.parse_ctrl_request();
 
         match (request_type, request) {
-            ((Direction::OUT, Type::Standard, Destination::Device), UsbRequest::GetStatus) => {
+            ((Some(Direction::OUT), Type::Standard, Destination::Device), UsbRequest::GetStatus) => {
                 self.usb.ep0r.toggle_tx_stall();
                 hprintln!("GET STATUS: {:x}", self.usb.ep0r.read().bits() as u16).unwrap();
             }
 
-            ((Direction::OUT, Type::Standard, Destination::Device), UsbRequest::SetAddress) => {
+            ((Some(Direction::OUT), Type::Standard, Destination::Device), UsbRequest::SetAddress) => {
 
                 hprintln!("Set Address: {:x}", value as u16).unwrap();
                 self.usb
@@ -183,7 +183,7 @@ impl<PINS> Usb<USB, PINS> {
                 self.usb.ep0r.toggle_0();
             }
 
-            ((Direction::IN, Type::Standard, Destination::Device), UsbRequest::GetDescriptor) => {
+            ((Some(Direction::IN), Type::Standard, Destination::Device), UsbRequest::GetDescriptor) => {
                 hprintln!("r: {:?}, v: {:x}, i: {:x}, l: {:x}", request, value, index, length).unwrap();
             }
 

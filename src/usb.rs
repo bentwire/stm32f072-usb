@@ -16,7 +16,7 @@ pub mod constants;
 mod usb_ext;
 pub mod descriptors;
 
-use self::constants::{UsbRequest,UsbRequestType};
+use self::constants::{UsbRequest,UsbRequestType, Direction, Type, Destination};
 use self::usb_ext::UsbEpExt;
 use self::descriptors::*;
 
@@ -28,6 +28,14 @@ pub enum UsbState {
     Addressed(u8),
 }
 
+#[derive(Debug)]
+pub struct Descriptors<'a> {
+    pub Device: Device,
+    pub Configuration: Configuration,
+    pub Interfaces: &'a [Interface],
+    pub Endpoints: &'a [Endpoint]
+}
+
 const MAX_PACKET_SIZE: u32 = 64;
 
 pub struct Usb<USB, PINS> {
@@ -35,6 +43,7 @@ pub struct Usb<USB, PINS> {
     pins: PINS,
     state: UsbState,
     pma: &'static mut PMA,
+    descriptors: Descriptors<'static>,
 }
 
 pub trait Pins<Usb> {}
@@ -48,7 +57,7 @@ pub enum Error {
 }
 
 impl<PINS> Usb<USB, PINS> {
-    pub fn usb(usb: USB, pins: PINS) -> Self
+    pub fn usb(usb: USB, pins: PINS, descriptors: Descriptors<'static>) -> Self
         where
         PINS: Pins<USB>,
         {
@@ -104,7 +113,7 @@ impl<PINS> Usb<USB, PINS> {
             let state = UsbState::BootReset;
             
             Usb {
-                usb, pins, state, pma
+                usb, pins, state, pma, descriptors
             }
         }
 
@@ -136,27 +145,35 @@ impl<PINS> Usb<USB, PINS> {
         }
     }
 
-    fn rx(&mut self) {
+    fn parse_ctrl_request(&mut self) -> ((Direction, Type, Destination), UsbRequest, u16, u16, u16) {
+        // Hard coded to ep0, fix this later
         let request16 = self.pma.pma_area.get_u16(0x20/2); // First u16 in RX buffer 
         let value = self.pma.pma_area.get_u16(0x22/2);   // Second u16 in RX buffer
         let index = self.pma.pma_area.get_u16(0x24/2);   // Third...
         let length = self.pma.pma_area.get_u16(0x26/2);  // Fourth...
 
-        //hprintln!("r: {:x}, v: {:x}, i: {:x}, l: {:x}", request16, value, index, length).unwrap();
-        // set COUNT0_RX to max acceptable size.
+        // set COUNT0_RX to max acceptable size. fix hardcoded endpoint later
         self.pma.pma_area.set_u16(3, (0x8000 | ((MAX_PACKET_SIZE / 32) - 1) << 10) as u16);
 
         let request_type = (request16 & 0xff) as u8;
-        let request_type = UsbRequestType::from(request_type);
+        //let request_type = UsbRequestType::from(request_type);
         let request = UsbRequest::from(((request16 & 0xff00) >> 8) as u8);
 
+        ((Direction::from_bits(request_type), Type::from_bits(request_type), Destination::from_bits(request_type)), request, value, index, length)
+    }
+
+    fn rx(&mut self) {
+
+        //hprintln!("v: {:x}, i: {:x}, l: {:x}", value, index, length).unwrap();
+        let (request_type, request, value, index, length) = self.parse_ctrl_request();
+
         match (request_type, request) {
-            (UsbRequestType::OutStandardDevice, UsbRequest::GetStatus) => {
+            ((Direction::OUT, Type::Standard, Destination::Device), UsbRequest::GetStatus) => {
                 self.usb.ep0r.toggle_tx_stall();
                 hprintln!("GET STATUS: {:x}", self.usb.ep0r.read().bits() as u16).unwrap();
             }
 
-            (UsbRequestType::OutStandardDevice, UsbRequest::SetAddress) => {
+            ((Direction::OUT, Type::Standard, Destination::Device), UsbRequest::SetAddress) => {
 
                 hprintln!("Set Address: {:x}", value as u16).unwrap();
                 self.usb
@@ -166,8 +183,8 @@ impl<PINS> Usb<USB, PINS> {
                 self.usb.ep0r.toggle_0();
             }
 
-            (UsbRequestType::InStandardDevice, UsbRequest::GetDescriptor) => {
-                hprintln!("r: {:x}, v: {:x}, i: {:x}, l: {:x}", request16, value, index, length).unwrap();
+            ((Direction::IN, Type::Standard, Destination::Device), UsbRequest::GetDescriptor) => {
+                hprintln!("r: {:?}, v: {:x}, i: {:x}, l: {:x}", request, value, index, length).unwrap();
             }
 
             // Fall though

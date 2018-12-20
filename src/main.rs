@@ -1,5 +1,7 @@
 #![no_std]
 #![no_main]
+//#![feature(min_const_fn)]
+//#![feature(const_let)]
 
 // pick a panicking behavior
 //extern crate panic_halt; // you can put a breakpoint on `rust_begin_unwind` to catch panics
@@ -42,6 +44,8 @@ use core::cell::RefCell;
 use core::ops::DerefMut;
 mod usb;
 
+use crate::usb::descriptors::*;
+
 // Make our LED globally available
 static LED: Mutex<RefCell<Option<gpioa::PA5<Output<PushPull>>>>> = Mutex::new(RefCell::new(None));
 
@@ -54,24 +58,35 @@ static INT: Mutex<RefCell<Option<EXTI>>> = Mutex::new(RefCell::new(None));
 // Make USB Driver globally available
 static USBDEV: Mutex<RefCell<Option<usb::Usb<USB, (gpioa::PA11<Alternate<AF0>>, gpioa::PA12<Alternate<AF0>>)>>>> = Mutex::new(RefCell::new(None));
 
-//const DEV_DESC : usb::descriptors::Device = usb::descriptors::Device {
-//    bLength: size_of::<usb::descriptors::Device>() as u8,
-//    bDescriptorType: usb::constants::UsbDescriptorType::Device as u8,
-//    bcdUSB: 0x0200,
-//    bDeviceClass: 0x00,
-//    bDeviceSubClass: 0x00,
-//    bDeviceProtocol: 0x00,
-//    bMaxPacketSize0: 0x40, // 64 bytes
-//    idVendor: 1155,
-//    idProduct: 49389,
-//    bcdDevice: 0x0200,
-//    iManufacturer: 0x00,
-//    iProduct: 0x00,
-//    iSerialNumber: 0x00,
-//    bNumConfigurations: 0x01,
-//};
+const DEV_DESC: Device = Device::new()
+                         .iManufacturer(1)
+                         .iProduct(2)
+                         .iSerialNumber(3)
+                         .bNumConfigurations(1);
 
-const DEV_QUAL: usb::descriptors::DeviceQualifier = usb::descriptors::DeviceQualifier::new().bcdUSB(0x0200);
+const DEV_QUAL: DeviceQualifier = DeviceQualifier::new().bcdUSB(0x0200);
+
+const INTERFACE_DESC: Interface = Interface::new().bNumEndpoints(1).iInterface(5);
+
+const EP01_DESC: Endpoint = Endpoint::new().bEndpointAddress(0x01).wMaxPacketSize(64).bInterval(1);
+
+const CONF_DESC: Configuration = Configuration::new()
+    .wTotalLength(size_of::<Configuration>() as u16 + size_of::<Interface>() as u16 + size_of::<Endpoint>() as u16 * 1) // add all descs up.
+    .bNumInterfaces(1)
+    .bConfigurationValue(1)
+    .iConfiguration(4)
+    .bmAttributes(0b1_1_0_00000) // Self powered no remote wakeup.
+    .bMaxPower(0xFA); // 500mA.
+
+const ints: [Interface; 1] = [INTERFACE_DESC];
+const eps: [Endpoint; 1] = [EP01_DESC];
+
+const DESCS: usb::Descriptors = usb::Descriptors {
+    Device: DEV_DESC,
+    Configuration: CONF_DESC,
+    Interfaces: &ints,
+    Endpoints: &eps
+};
 
 #[entry]
 fn main() -> ! {
@@ -127,7 +142,7 @@ fn main() -> ! {
         let dm = gpioa.pa11.into_alternate_af0();
         let dp = gpioa.pa12.into_alternate_af0();
         
-        let mut usb = usb::Usb::usb(p.USB, (dm, dp));
+        let usb = usb::Usb::usb(p.USB, (dm, dp), DESCS);
 
         // Configure I2C
         let scl = gpiob.pb8
@@ -139,7 +154,7 @@ fn main() -> ! {
             .internal_pull_up(true)
             .set_open_drain();
 
-        let mut i2c = I2c::i2c1(p.I2C1, (scl, sda), 400.khz());
+        let i2c = I2c::i2c1(p.I2C1, (scl, sda), 400.khz());
 
         // Configure display
         let mut disp: GraphicsMode<_> = Builder::new()
@@ -184,7 +199,7 @@ fn main() -> ! {
 fn USB() {
     //hprintln!("USB_ISR:").unwrap();
     cortex_m::interrupt::free(|cs| {
-        if let (&mut Some(ref mut usb)) = (USBDEV.borrow(cs).borrow_mut().deref_mut()) {
+        if let &mut Some(ref mut usb) = USBDEV.borrow(cs).borrow_mut().deref_mut() {
             usb.interrupt();
         }
     });

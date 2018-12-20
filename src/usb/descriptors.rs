@@ -42,10 +42,10 @@ impl Device {
             bLength: size_of::<Device>() as u8,
             bDescriptorType: constants::UsbDescriptorType::Device as u8,
             bcdUSB: 0x0200,
-            bDeviceClass: 0x00,
-            bDeviceSubClass: 0x00,
-            bDeviceProtocol: 0x00,
-            bMaxPacketSize0: 0x40,
+            bDeviceClass: 0x00, // Use interface by default
+            bDeviceSubClass: 0x00, // Use interface by default
+            bDeviceProtocol: 0x00, // Use interface by default
+            bMaxPacketSize0: 0x40, // 64 bytes max ep0 transfer size.
             idVendor: 0xffff,
             idProduct: 0xffff,
             bcdDevice: 0x0200,
@@ -101,6 +101,20 @@ impl Device {
     pub const fn idProduct(&self, idProduct: u16) -> Self {
         Self {
             idProduct,
+            ..*self
+        }
+    }
+
+    pub const fn iManufacturer(&self, iManufacturer: u8) -> Self {
+        Self {
+            iManufacturer,
+            ..*self
+        }
+    }
+
+    pub const fn iProduct(&self, iProduct: u8) -> Self {
+        Self {
+            iProduct,
             ..*self
         }
     }
@@ -177,9 +191,9 @@ impl DeviceQualifier {
             bLength: size_of::<DeviceQualifier>() as u8,
             bDescriptorType: constants::UsbDescriptorType::DeviceQualifier as u8,
             bcdUSB: 0x0200,
-            bDeviceClass: 0x00,
-            bDeviceSubClass: 0x00,
-            bDeviceProtocol: 0x00,
+            bDeviceClass: 0x00, // Use interface by default
+            bDeviceSubClass: 0x00, // Use interface by default
+            bDeviceProtocol: 0x00, // Use interface by default
             bMaxPacketSize0: 0x40,
             bNumConfigurations: 0x01,
             bReserved: 0x00,
@@ -284,6 +298,56 @@ pub struct Interface {
     iInterface: u8,
 }
 
+impl Default for Interface {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Interface {
+    pub const fn new() -> Self {
+        Self {
+            bLength: size_of::<Interface>() as u8,
+            bDescriptorType: constants::UsbDescriptorType::Interface as u8,
+            bInterfaceNumber: 0,
+            bAlternateSetting: 0,
+            bNumEndpoints: 1,
+            bInterfaceClass: 0xff, // Vendor specific class by default
+            bInterfaceSubClass: 0xff,
+            bInterfaceProtocol: 0xff,
+            iInterface: 0,
+        }
+    }
+
+    pub const fn bInterfaceNumber(&self, bInterfaceNumber: u8) -> Self {
+        Self {
+            bInterfaceNumber,
+            ..*self
+        }
+    }
+
+    pub const fn bAlternateSetting(&self, bAlternateSetting: u8) -> Self {
+        Self {
+            bAlternateSetting,
+            ..*self
+        }
+    }
+
+    pub const fn bNumEndpoints(&self,  bNumEndpoints: u8) -> Self {
+        Self {
+             bNumEndpoints,
+             ..*self
+        }
+    }
+
+    pub const fn iInterface(&self, iInterface: u8) -> Self {
+        Self {
+            iInterface,
+            ..*self
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
 pub struct Endpoint { 
@@ -293,6 +357,53 @@ pub struct Endpoint {
     bmAttributes: u8,
     wMaxPacketSize: u16,
     bInterval: u8,
+}
+
+impl Default for Endpoint {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Endpoint {
+    pub const fn new() -> Self {
+        Self {
+            bLength: size_of::<Endpoint>() as u8,
+            bDescriptorType: constants::UsbDescriptorType::Endpoint as u8,
+            bEndpointAddress: 0x01, // EP1 OUT by default.
+            bmAttributes: 0b000000_10, // Bulk by default.
+            wMaxPacketSize: 64, // 64 byte max packet size for default.
+            bInterval: 10, // Ignored except for Isoc/Interrupt endpoints. Polling interval in frames, 1 frame is 1ms must be 1 for isoc.
+        }
+    }
+
+    pub const fn bEndpointAddress(&self, bEndpointAddress: u8) -> Self {
+        Self {
+            bEndpointAddress,
+            ..*self
+        }
+    }
+
+    pub const fn bmAttributes(&self, bmAttributes: u8) -> Self {
+        Self {
+            bmAttributes,
+            ..*self
+        }
+    }
+
+    pub const fn wMaxPacketSize(&self, wMaxPacketSize: u16) -> Self {
+        Self {
+            wMaxPacketSize,
+            ..*self
+        }
+    }
+
+    pub const fn bInterval(&self, bInterval: u8) -> Self {
+        Self {
+            bInterval,
+            ..*self
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]

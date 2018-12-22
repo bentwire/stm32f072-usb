@@ -15,6 +15,7 @@ mod pma;
 pub mod constants;
 mod usb_ext;
 pub mod descriptors;
+pub mod types;
 
 use self::constants::{UsbRequest,UsbRequestType, Direction, Type, Destination};
 use self::usb_ext::UsbEpExt;
@@ -120,9 +121,9 @@ impl<PINS> Usb<USB, PINS> {
     fn reset(&mut self) {
         // Init EP0
         self.pma.pma_area.set_u16(0, 0x40); // ADDR0_TX, buffer at offset 0x40 in PMA.
-        self.pma.pma_area.set_u16(1, 0);    // COUNT0_TX, 0 bytes in buffer
-        self.pma.pma_area.set_u16(2, 0x20); // ADDR0_RX, buffer at offset 0x20 in PMA.
-        self.pma.pma_area.set_u16(3, (0x8000 | ((MAX_PACKET_SIZE / 32) - 1) << 10) as u16); // COUNT0_RX, Set buffer count.
+        self.pma.pma_area.set_u16(2, 0);    // COUNT0_TX, 0 bytes in buffer
+        self.pma.pma_area.set_u16(4, 0x20); // ADDR0_RX, buffer at offset 0x20 in PMA.
+        self.pma.pma_area.set_u16(6, (0x8000 | ((MAX_PACKET_SIZE / 32) - 1) << 10) as u16); // COUNT0_RX, Set buffer count.
 
         self.usb.ep0r.write(|w| unsafe {
             w.ep_type().bits(0b01) // Ctrl endpoint
@@ -147,13 +148,13 @@ impl<PINS> Usb<USB, PINS> {
 
     fn parse_ctrl_request(&mut self) -> ((Option<Direction>, Option<Type>, Option<Destination>), UsbRequest, u16, u16, u16) {
         // Hard coded to ep0, fix this later
-        let request16 = self.pma.pma_area.get_u16(0x20/2); // First u16 in RX buffer 
-        let value = self.pma.pma_area.get_u16(0x22/2);   // Second u16 in RX buffer
-        let index = self.pma.pma_area.get_u16(0x24/2);   // Third...
-        let length = self.pma.pma_area.get_u16(0x26/2);  // Fourth...
+        let request16 = self.pma.pma_area.get_u16(0x20); // First u16 in RX buffer 
+        let value = self.pma.pma_area.get_u16(0x22);   // Second u16 in RX buffer
+        let index = self.pma.pma_area.get_u16(0x24);   // Third...
+        let length = self.pma.pma_area.get_u16(0x26);  // Fourth...
 
         // set COUNT0_RX to max acceptable size. fix hardcoded endpoint later
-        self.pma.pma_area.set_u16(3, (0x8000 | ((MAX_PACKET_SIZE / 32) - 1) << 10) as u16);
+        self.pma.pma_area.set_u16(6, (0x8000 | ((MAX_PACKET_SIZE / 32) - 1) << 10) as u16);
 
         let request_type = (request16 & 0xff) as u8;
         //let request_type = UsbRequestType::from(request_type);
@@ -198,7 +199,7 @@ impl<PINS> Usb<USB, PINS> {
     fn tx(&mut self) {
 
         hprintln!("TX").unwrap();
-        self.pma.pma_area.set_u16(3, 0); // Set COUNT0_RX to 0.
+        self.pma.pma_area.set_u16(6, 0); // Set COUNT0_RX to 0.
         self.usb.ep0r.toggle_tx_out();
     }
 

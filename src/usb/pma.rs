@@ -5,7 +5,14 @@ use bare_metal::Peripheral;
 use core::ops::Deref;
 
 // TODO: make this take-able? or at least move into the main usb part
+// RM0091 30.6.2
+// The first packet memory location is located at 0x4000 6000. The buffer descriptor table
+// entry associated with the USB_EPnR registers is described below. The packet memory
+// should be accessed only by byte (8-bit) or half-word (16-bit) accesses. Word (32-bit)
+// accesses are not allowed.
 pub const PMA: Peripheral<PMA> = unsafe { Peripheral::new(0x4000_6000) };
+pub const PMA_SIZE: usize = 1024; // Size in bytes.
+
 //const BTABLE: usize = 0;
 
 pub struct PMA {
@@ -14,8 +21,8 @@ pub struct PMA {
 
 impl PMA {
     pub fn zero(&mut self) {
-        for i in 0..512 {
-            self.pma_area.set_u16(i, 0);
+        for i in 0..PMA_SIZE {
+            self.pma_area.set_u8(i, 0);
         }
     }
 }
@@ -27,37 +34,57 @@ impl Deref for PMA {
     }
 }
 
+// RM0091 30.6.2
+// The first packet memory location is located at 0x4000 6000. The buffer descriptor table
+// entry associated with the USB_EPnR registers is described below. The packet memory
+// should be accessed only by byte (8-bit) or half-word (16-bit) accesses. Word (32-bit)
+// accesses are not allowed.
+
 #[repr(C)]
 pub struct PMA_Area {
-    words: [VolatileCell<u16>; 512],
+    bytes: [VolatileCell<u8>; PMA_SIZE],
+//    words: [VolatileCell<u16>; PMA_SIZE / 2],
 }
 
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
+pub struct USB_BufferDescriptor {
+    ADDR_TX: u16, // Offset in to PMA where packet buffer resides.
+    COUNT_TX: u16, // Bytes to be transmitted
+    ADDR_RX: u16, // Offset in to PMA where packet buffer resides.
+    COUNT_RX: u16, // BLSIZE, NUM_BLOCK[4:0], COUNT_RX[9:0] 0bx_xxxxx_xxxxxxxxxx
+}
+
+// TODO - USB_DoubleBuffer{Tx,Rx}Descriptor
+
 impl PMA_Area {
-    // TODO: use operator overloading and just impl [] access, without double-counting
+    //LSB first...
     pub fn get_u16(&self, offset: usize) -> u16 {
-        self.words[offset].get()
+        //self.words[offset/2].get()
+        (self.bytes[offset].get() as u16) | (((self.bytes[offset + 1].get() as u16) << 8) & 0xff00)
     }
 
+    // LSB first...
     pub fn set_u16(&self, offset: usize, val: u16) {
-        self.words[offset].set(val);
+        self.bytes[offset].set((val & 0x00ff) as u8);
+        self.bytes[offset + 1].set((val >> 8 & 0x00ff) as u8);
     }
 
-    pub fn write_buffer_u8(&self, base: usize, buf: &[u8]) {
-        let mut last: u16 = 0;
-        let mut off: usize = 0;
+    pub fn get_u8(&self, offset: usize) -> u8 {
+        self.bytes[offset].get()
+    }
 
-        for (ofs, v) in buf.iter().enumerate() {
-            off = ofs;
-            if ofs & 1 == 0 {
-                last = u16::from(*v);
-            } else {
-                self.set_u16((base + ofs) & !1, last | (u16::from(*v) << 8));
-            }
-        }
+    pub fn set_u8(&self, offset: usize, val: u8) {
+        self.bytes[offset].set(val);
+    }
 
-        if off & 1 == 0 {
-            //self.set_u16(base + (off * 2), last);
-            self.set_u16(base + off, last);
+    pub fn borrow_slice(&self, offset: usize, size: usize) -> &[VolatileCell<u8>] {
+        &self.bytes[offset..size]
+    }
+
+    pub fn write_buffer_u8(&self, offset: usize, buf: &[u8]) {
+        for (off, val) in buf.iter().enumerate() {
+            self.set_u8(offset + off, *val);
         }
     }
 }

@@ -3,6 +3,7 @@ extern crate vcell;
 use self::vcell::VolatileCell;
 use bare_metal::Peripheral;
 use core::ops::Deref;
+use core::mem::size_of;
 
 // TODO: make this take-able? or at least move into the main usb part
 // RM0091 30.6.2
@@ -48,7 +49,7 @@ pub struct PMA_Area {
 
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
-pub struct USB_BufferDescriptor {
+pub struct USB_EpBufferDescriptor {
     ADDR_TX: u16, // Offset in to PMA where packet buffer resides.
     COUNT_TX: u16, // Bytes to be transmitted
     ADDR_RX: u16, // Offset in to PMA where packet buffer resides.
@@ -80,6 +81,15 @@ impl PMA_Area {
 
     pub fn borrow_slice(&self, offset: usize, size: usize) -> &[VolatileCell<u8>] {
         &self.bytes[offset..size]
+    }
+
+    pub fn get_buffer_descriptor(&self, offset: usize) -> &USB_EpBufferDescriptor {
+        unsafe { &*((&self.bytes as *const VolatileCell<u8>) as *const USB_EpBufferDescriptor) }
+    }
+
+    pub fn get_buffer_descriptor2(&self, offset: usize) -> &USB_EpBufferDescriptor {
+        let slice = self.borrow_slice(offset, size_of::<USB_EpBufferDescriptor>());
+        unsafe { &*((slice as *const [VolatileCell<u8>]) as *const USB_EpBufferDescriptor) }
     }
 
     pub fn write_buffer_u8(&self, offset: usize, buf: &[u8]) {

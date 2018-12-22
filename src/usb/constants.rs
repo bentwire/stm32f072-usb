@@ -54,14 +54,12 @@ impl Type {
         (self as u8) << 5
     }
 
-    // This should be const-able!!!
-    pub fn from_bits(bits: u8) -> Self {
+    pub fn from_bits(bits: u8) -> Option<Self> {
         match bits >> 5 {
-            0b00 => Type::Standard,
-            0b01 => Type::Class,
-            0b10 => Type::Vendor,
-            //_ => compile_error!("Invalid value for Type") If this were const I could do this...
-            _ => panic!("Invalid value for Request Type")
+            0b00 => Some(Type::Standard),
+            0b01 => Some(Type::Class),
+            0b10 => Some(Type::Vendor),
+            _ => None
         }
     }
 }
@@ -80,38 +78,15 @@ impl Destination {
         (self as u8)
     }
 
-    // This should be const-able!!!
-    pub fn from_bits(bits: u8) -> Self {
+    pub fn from_bits(bits: u8) -> Option<Self> {
         match bits & 0b11 {
-            0b00 => Destination::Device,
-            0b01 => Destination::Interface,
-            0b10 => Destination::Endpoint,
-            0b11 => Destination::Other,
-            //_ => compile_error!("Invalid value for Destination") If this were const I could do this...
-            _ => panic!("Invalid value for Request Destination")
+            0b00 => Some(Destination::Device),
+            0b01 => Some(Destination::Interface),
+            0b10 => Some(Destination::Endpoint),
+            0b11 => Some(Destination::Other),
+            _ => None
         }
     }
-}
-
-#[repr(u8)]
-#[derive(Debug, Copy, Clone)]
-pub enum RequestType {
-    Request(Direction, Type, Destination)
-}
-
-impl RequestType {
-//    pub const fn request(&self, request: RequestType) -> u8 {
-//        match request {
-//            RequestType::Request(direction, rtype, dest) => (direction as u8) << 8 | (rtype as u8) << 5 | (dest as u8) 
-//        }
-//        //let RequestType::Request(const direction, const rtype, const dest) = request;
-//    }
-
-//    pub const fn to_bits(&self) -> u8 {
-//        match *self {
-//            RequestType::Request(dir, rtype, dest) => dir.to_bits() | rtype.to_bits() | dest.to_bits()
-//        }
-//    }
 }
 
 #[repr(u8)]

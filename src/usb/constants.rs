@@ -23,7 +23,7 @@ pub enum UsbRequest {
 #[derive(Debug, Copy, Clone)]
 pub enum Direction {
     OUT = 0b0,
-    IN  = 0b1,
+    IN = 0b1,
 }
 
 impl Direction {
@@ -36,7 +36,7 @@ impl Direction {
         match (bits >> 7) & 0x01 {
             0b0 => Some(Direction::OUT),
             0b1 => Some(Direction::IN),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -45,8 +45,8 @@ impl Direction {
 #[derive(Debug, Copy, Clone)]
 pub enum Type {
     Standard = 0b00,
-    Class    = 0b01,
-    Vendor   = 0b10
+    Class = 0b01,
+    Vendor = 0b10,
 }
 
 impl Type {
@@ -59,7 +59,7 @@ impl Type {
             0b00 => Some(Type::Standard),
             0b01 => Some(Type::Class),
             0b10 => Some(Type::Vendor),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -70,7 +70,7 @@ pub enum Destination {
     Device = 0b00,
     Interface = 0b01,
     Endpoint = 0b10,
-    Other = 0b11
+    Other = 0b11,
 }
 
 impl Destination {
@@ -84,7 +84,7 @@ impl Destination {
             0b01 => Some(Destination::Interface),
             0b10 => Some(Destination::Endpoint),
             0b11 => Some(Destination::Other),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -92,31 +92,31 @@ impl Destination {
 #[repr(u8)]
 #[derive(Debug, Copy, Clone)]
 pub enum UsbRequestType {
-    OutStandardDevice    = 0b0_00_00000,
+    OutStandardDevice = 0b0_00_00000,
     OutStandardInterface = 0b0_00_00001,
-    OutStandardEndpoint  = 0b0_00_00010,
-    OutStandardOther     = 0b0_00_00011,
-    OutClassDevice       = 0b0_01_00000,
-    OutClassInterface    = 0b0_01_00001,
-    OutClassEndpoint     = 0b0_01_00010,
-    OutClassOther        = 0b0_01_00011,
-    OutVendorDevice      = 0b0_10_00000,
-    OutVendorInterface   = 0b0_10_00001,
-    OutVendorEndpoint    = 0b0_10_00010,
-    OutVendorOther       = 0b0_10_00011,
+    OutStandardEndpoint = 0b0_00_00010,
+    OutStandardOther = 0b0_00_00011,
+    OutClassDevice = 0b0_01_00000,
+    OutClassInterface = 0b0_01_00001,
+    OutClassEndpoint = 0b0_01_00010,
+    OutClassOther = 0b0_01_00011,
+    OutVendorDevice = 0b0_10_00000,
+    OutVendorInterface = 0b0_10_00001,
+    OutVendorEndpoint = 0b0_10_00010,
+    OutVendorOther = 0b0_10_00011,
 
-    InStandardDevice    = 0b1_00_00000,
+    InStandardDevice = 0b1_00_00000,
     InStandardInterface = 0b1_00_00001,
-    InStandardEndpoint  = 0b1_00_00010,
-    InStandardOther     = 0b1_00_00011,
-    InClassDevice       = 0b1_01_00000,
-    InClassInterface    = 0b1_01_00001,
-    InClassEndpoint     = 0b1_01_00010,
-    InClassOther        = 0b1_01_00011,
-    InVendorDevice      = 0b1_10_00000,
-    InVendorInterface   = 0b1_10_00001,
-    InVendorEndpoint    = 0b1_10_00010,
-    InVendorOther       = 0b1_10_00011,
+    InStandardEndpoint = 0b1_00_00010,
+    InStandardOther = 0b1_00_00011,
+    InClassDevice = 0b1_01_00000,
+    InClassInterface = 0b1_01_00001,
+    InClassEndpoint = 0b1_01_00010,
+    InClassOther = 0b1_01_00011,
+    InVendorDevice = 0b1_10_00000,
+    InVendorInterface = 0b1_10_00001,
+    InVendorEndpoint = 0b1_10_00010,
+    InVendorOther = 0b1_10_00011,
 }
 
 impl From<u8> for UsbRequest {

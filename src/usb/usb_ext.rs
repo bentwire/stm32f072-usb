@@ -49,12 +49,10 @@ impl UsbEpExt for EP0R {
 
     fn toggle_rx(&self) {
         self.toggle(EP_DTOG_RX, EP_DTOG_RX, 0)
-
     }
 
     fn toggle_tx(&self) {
         self.toggle(EP_DTOG_TX, EP_DTOG_TX, 0)
-
     }
 
     fn toggle(&self, mask: u32, val: u32, flags: u32) {
@@ -62,11 +60,11 @@ impl UsbEpExt for EP0R {
     }
 
     fn clear_ctr_rx(&self) {
-        self.modify(|r, w| unsafe { w.bits((r.bits() & EP_MASK) | EP_CTR_TX)});
+        self.modify(|r, w| unsafe { w.bits((r.bits() & EP_MASK) | EP_CTR_TX) });
     }
 
     fn clear_ctr_tx(&self) {
-        self.modify(|r, w| unsafe { w.bits((r.bits() & EP_MASK) | EP_CTR_RX)});
+        self.modify(|r, w| unsafe { w.bits((r.bits() & EP_MASK) | EP_CTR_RX) });
     }
 }
 
@@ -89,12 +87,10 @@ impl UsbEpExt for EP1R {
 
     fn toggle_rx(&self) {
         self.toggle(EP_DTOG_RX, EP_DTOG_RX, 0)
-
     }
 
     fn toggle_tx(&self) {
         self.toggle(EP_DTOG_TX, EP_DTOG_TX, 0)
-
     }
 
     fn toggle(&self, mask: u32, val: u32, flags: u32) {
@@ -102,10 +98,10 @@ impl UsbEpExt for EP1R {
     }
 
     fn clear_ctr_rx(&self) {
-        self.modify(|r, w| unsafe { w.bits((r.bits() & EP_MASK) | EP_CTR_TX)});
+        self.modify(|r, w| unsafe { w.bits((r.bits() & EP_MASK) | EP_CTR_TX) });
     }
 
     fn clear_ctr_tx(&self) {
-        self.modify(|r, w| unsafe { w.bits((r.bits() & EP_MASK) | EP_CTR_RX)});
+        self.modify(|r, w| unsafe { w.bits((r.bits() & EP_MASK) | EP_CTR_RX) });
     }
 }

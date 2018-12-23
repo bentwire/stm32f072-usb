@@ -9,22 +9,21 @@
 // extern crate panic_itm; // logs messages over ITM; requires ITM support
 extern crate panic_semihosting; // logs messages to the host stderr; requires a debugger
 
-
-extern crate stm32f0xx_hal as hal;
-extern crate stm32f0;
 extern crate embedded_hal;
+extern crate stm32f0;
+extern crate stm32f0xx_hal as hal;
 
 use core::mem::size_of;
 use stm32f0::stm32f0x2;
 
 use hal::delay::Delay;
-use hal::i2c::*;
 use hal::gpio::*;
+use hal::i2c::*;
 use hal::prelude::*;
 
-use cortex_m_semihosting::{debug, hprintln};
 use cortex_m::interrupt::Mutex;
 use cortex_m::peripheral::Peripherals as c_m_Peripherals;
+use cortex_m_semihosting::{debug, hprintln};
 //use cortex_m_rt::{entry, interrupt};
 use cortex_m_rt::entry;
 
@@ -32,7 +31,7 @@ use cortex_m_rt::entry;
 use core::fmt::Write;
 
 pub use hal::stm32;
-pub use hal::stm32::{interrupt, Interrupt, EXTI, Peripherals, USB, I2C1};
+pub use hal::stm32::{interrupt, Interrupt, Peripherals, EXTI, I2C1, USB};
 //pub use hal::stm32::*;
 
 use embedded_graphics::fonts::Font6x8;
@@ -56,22 +55,31 @@ static DELAY: Mutex<RefCell<Option<Delay>>> = Mutex::new(RefCell::new(None));
 static INT: Mutex<RefCell<Option<EXTI>>> = Mutex::new(RefCell::new(None));
 
 // Make USB Driver globally available
-static USBDEV: Mutex<RefCell<Option<usb::Usb<USB, (gpioa::PA11<Alternate<AF0>>, gpioa::PA12<Alternate<AF0>>)>>>> = Mutex::new(RefCell::new(None));
+static USBDEV: Mutex<
+    RefCell<Option<usb::Usb<USB, (gpioa::PA11<Alternate<AF0>>, gpioa::PA12<Alternate<AF0>>)>>>,
+> = Mutex::new(RefCell::new(None));
 
 const DEV_DESC: Device = Device::new()
-                         .iManufacturer(1)
-                         .iProduct(2)
-                         .iSerialNumber(3)
-                         .bNumConfigurations(1);
+    .iManufacturer(1)
+    .iProduct(2)
+    .iSerialNumber(3)
+    .bNumConfigurations(1);
 
 const DEV_QUAL: DeviceQualifier = DeviceQualifier::new().bcdUSB(0x0200);
 
 const INTERFACE_DESC: Interface = Interface::new().bNumEndpoints(1).iInterface(5);
 
-const EP01_DESC: Endpoint = Endpoint::new().bEndpointAddress(0x01).wMaxPacketSize(64).bInterval(1);
+const EP01_DESC: Endpoint = Endpoint::new()
+    .bEndpointAddress(0x01)
+    .wMaxPacketSize(64)
+    .bInterval(1);
 
 const CONF_DESC: Configuration = Configuration::new()
-    .wTotalLength(size_of::<Configuration>() as u16 + size_of::<Interface>() as u16 + size_of::<Endpoint>() as u16 * 1) // add all descs up.
+    .wTotalLength(
+        size_of::<Configuration>() as u16
+            + size_of::<Interface>() as u16
+            + size_of::<Endpoint>() as u16 * 1,
+    ) // add all descs up.
     .bNumInterfaces(1)
     .bConfigurationValue(1)
     .iConfiguration(4)
@@ -85,7 +93,7 @@ const DESCS: usb::Descriptors = usb::Descriptors {
     Device: DEV_DESC,
     Configuration: CONF_DESC,
     Interfaces: &ints,
-    Endpoints: &eps
+    Endpoints: &eps,
 };
 
 #[entry]
@@ -100,10 +108,6 @@ fn main() -> ! {
         let rcc = p.RCC;
 
         hprintln!("{:?}", DEV_QUAL).unwrap();
-        // Set HSI48 as clock source. Both prescalers to /1.
-        rcc.cfgr.modify(|_, w| unsafe { w.sw().bits(0b11)
-                                        .ppre().bits(0) 
-                                        .hpre().bits(0)});
 
         // Enable clock for SYSCFG
         rcc.apb2enr.modify(|_, w| w.syscfgen().set_bit());
@@ -118,10 +122,14 @@ fn main() -> ! {
         led.set_low();
 
         // Configure clock to 48 MHz and freeze it
-        let clocks = rcc.constrain().cfgr.sysclk(48.mhz())
-                                            .hclk(48.mhz())
-                                            .pclk(48.mhz())
-                                            .freeze();
+        let clocks = rcc
+            .constrain()
+            .cfgr
+            .enable_hsi48(true)
+            .sysclk(48.mhz())
+            .hclk(48.mhz())
+            .pclk(48.mhz())
+            .freeze();
         hprintln!("sysclk: {}", clocks.sysclk().0).unwrap();
         hprintln!("hclk: {}", clocks.hclk().0).unwrap();
         hprintln!("pclk: {}", clocks.pclk().0).unwrap();
@@ -141,15 +149,17 @@ fn main() -> ! {
 
         let dm = gpioa.pa11.into_alternate_af0();
         let dp = gpioa.pa12.into_alternate_af0();
-        
+
         let usb = usb::Usb::usb(p.USB, (dm, dp), DESCS);
 
         // Configure I2C
-        let scl = gpiob.pb8
+        let scl = gpiob
+            .pb8
             .into_alternate_af1()
             .internal_pull_up(true)
             .set_open_drain();
-        let sda = gpiob.pb9
+        let sda = gpiob
+            .pb9
             .into_alternate_af1()
             .internal_pull_up(true)
             .set_open_drain();
@@ -159,7 +169,8 @@ fn main() -> ! {
         // Configure display
         let mut disp: GraphicsMode<_> = Builder::new()
             .with_size(DisplaySize::Display128x32)
-            .connect_i2c(i2c).into();
+            .connect_i2c(i2c)
+            .into();
 
         disp.init().unwrap();
         disp.flush().unwrap();
@@ -171,24 +182,23 @@ fn main() -> ! {
             *INT.borrow(cs).borrow_mut() = Some(exti);
             *USBDEV.borrow(cs).borrow_mut() = Some(usb);
         });
-        
+
         // Enable EXTI IRQ, set prio 1 and clear any pending IRQs
         let mut nvic = cp.NVIC;
         nvic.enable(Interrupt::EXTI4_15);
         nvic.enable(Interrupt::USB);
         unsafe { nvic.set_priority(Interrupt::EXTI4_15, 0) };
         cortex_m::peripheral::NVIC::unpend(Interrupt::EXTI4_15);
-        
+
         hprintln!("init complete.").unwrap();
 
         disp.draw(
             Font6x8::render_str("this is a test")
-            .with_stroke(Some(1u8.into()))
-            .into_iter(),);
-
+                .with_stroke(Some(1u8.into()))
+                .into_iter(),
+        );
 
         disp.flush().unwrap();
-
     }
     loop {
         // your code goes here
@@ -234,4 +244,3 @@ fn EXTI4_15() {
         }
     });
 }
-

@@ -1,9 +1,12 @@
+#![allow(non_snake_case)]
+#![allow(dead_code)]
+
 extern crate vcell;
 
 use self::vcell::VolatileCell;
 use bare_metal::Peripheral;
-use core::ops::Deref;
 use core::mem::size_of;
+use core::ops::Deref;
 
 // TODO: make this take-able? or at least move into the main usb part
 // RM0091 30.6.2
@@ -44,15 +47,15 @@ impl Deref for PMA {
 #[repr(C)]
 pub struct PMA_Area {
     bytes: [VolatileCell<u8>; PMA_SIZE],
-//    words: [VolatileCell<u16>; PMA_SIZE / 2],
+    //    words: [VolatileCell<u16>; PMA_SIZE / 2],
 }
 
 #[repr(C, packed)]
 #[derive(Debug, Copy, Clone)]
 pub struct USB_EpBufferDescriptor {
-    ADDR_TX: u16, // Offset in to PMA where packet buffer resides.
+    ADDR_TX: u16,  // Offset in to PMA where packet buffer resides.
     COUNT_TX: u16, // Bytes to be transmitted
-    ADDR_RX: u16, // Offset in to PMA where packet buffer resides.
+    ADDR_RX: u16,  // Offset in to PMA where packet buffer resides.
     COUNT_RX: u16, // BLSIZE, NUM_BLOCK[4:0], COUNT_RX[9:0] 0bx_xxxxx_xxxxxxxxxx
 }
 

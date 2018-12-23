@@ -1,9 +1,9 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
+use core::marker::Sized;
 use core::mem::{size_of, transmute};
 use core::slice::*;
-use core::marker::Sized;
 
 use crate::usb::constants;
 //use crate::usb::macros;
@@ -14,20 +14,20 @@ use crate::usb::constants;
 #[repr(C, packed)]
 //#[show_streams]
 pub struct Device {
-     bLength: u8,
-     bDescriptorType: u8,
-     bcdUSB: u16,
-     bDeviceClass: u8,
-     bDeviceSubClass: u8,
-     bDeviceProtocol: u8,
-     bMaxPacketSize0: u8,
-     idVendor: u16,
-     idProduct: u16,
-     bcdDevice: u16,
-     iManufacturer: u8,
-     iProduct: u8,
-     iSerialNumber: u8,
-     bNumConfigurations: u8,
+    bLength: u8,
+    bDescriptorType: u8,
+    bcdUSB: u16,
+    bDeviceClass: u8,
+    bDeviceSubClass: u8,
+    bDeviceProtocol: u8,
+    bMaxPacketSize0: u8,
+    idVendor: u16,
+    idProduct: u16,
+    bcdDevice: u16,
+    iManufacturer: u8,
+    iProduct: u8,
+    iSerialNumber: u8,
+    bNumConfigurations: u8,
 }
 
 impl Default for Device {
@@ -42,7 +42,7 @@ impl Device {
             bLength: size_of::<Device>() as u8,
             bDescriptorType: constants::UsbDescriptorType::Device as u8,
             bcdUSB: 0x0200,
-            bDeviceClass: 0x00, // Use interface by default
+            bDeviceClass: 0x00,    // Use interface by default
             bDeviceSubClass: 0x00, // Use interface by default
             bDeviceProtocol: 0x00, // Use interface by default
             bMaxPacketSize0: 0x40, // 64 bytes max ep0 transfer size.
@@ -57,10 +57,7 @@ impl Device {
     }
 
     pub const fn bcdUSB(&self, bcdUSB: u16) -> Self {
-        Self {
-            bcdUSB,
-            ..*self
-        }
+        Self { bcdUSB, ..*self }
     }
 
     pub const fn bDeviceClass(&self, bDeviceClass: u8) -> Self {
@@ -92,17 +89,11 @@ impl Device {
     }
 
     pub const fn idVendor(&self, idVendor: u16) -> Self {
-        Self {
-            idVendor,
-            ..*self
-        }
+        Self { idVendor, ..*self }
     }
 
     pub const fn idProduct(&self, idProduct: u16) -> Self {
-        Self {
-            idProduct,
-            ..*self
-        }
+        Self { idProduct, ..*self }
     }
 
     pub const fn iManufacturer(&self, iManufacturer: u8) -> Self {
@@ -113,10 +104,7 @@ impl Device {
     }
 
     pub const fn iProduct(&self, iProduct: u8) -> Self {
-        Self {
-            iProduct,
-            ..*self
-        }
+        Self { iProduct, ..*self }
     }
 
     pub const fn iSerialNumber(&self, iSerialNumber: u8) -> Self {
@@ -138,7 +126,7 @@ impl Device {
 //    #[inline]
 //    fn from(b: [u8; size_of::<Device>()]) -> Self {
 //        Self {
-//            
+//
 //        }
 //        //unsafe { transmute(b) }
 //    }
@@ -161,7 +149,7 @@ impl Device {
 //impl From<Device> for [u8; size_of::<Device>()] {
 //    #[inline]
 //    fn from(a: Device) -> [u8; size_of::<Device>()] {
-//       *as_u8_arry(&a) 
+//       *as_u8_arry(&a)
 //    }
 //}
 
@@ -191,7 +179,7 @@ impl DeviceQualifier {
             bLength: size_of::<DeviceQualifier>() as u8,
             bDescriptorType: constants::UsbDescriptorType::DeviceQualifier as u8,
             bcdUSB: 0x0200,
-            bDeviceClass: 0x00, // Use interface by default
+            bDeviceClass: 0x00,    // Use interface by default
             bDeviceSubClass: 0x00, // Use interface by default
             bDeviceProtocol: 0x00, // Use interface by default
             bMaxPacketSize0: 0x40,
@@ -201,16 +189,14 @@ impl DeviceQualifier {
     }
 
     pub const fn bcdUSB(&self, bcdUSB: u16) -> Self {
-        Self {
-            bcdUSB,
-            ..*self
-        }
+        Self { bcdUSB, ..*self }
     }
 }
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
-pub struct Configuration { // Also other speed configuration.
+pub struct Configuration {
+    // Also other speed configuration.
     bLength: u8,
     bDescriptorType: u8,
     wTotalLength: u16,
@@ -277,16 +263,13 @@ impl Configuration {
     }
 
     pub const fn bMaxPower(&self, bMaxPower: u8) -> Self {
-        Self {
-            bMaxPower,
-            ..*self
-        }
+        Self { bMaxPower, ..*self }
     }
 }
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
-pub struct Interface { 
+pub struct Interface {
     bLength: u8,
     bDescriptorType: u8,
     bInterfaceNumber: u8,
@@ -333,10 +316,10 @@ impl Interface {
         }
     }
 
-    pub const fn bNumEndpoints(&self,  bNumEndpoints: u8) -> Self {
+    pub const fn bNumEndpoints(&self, bNumEndpoints: u8) -> Self {
         Self {
-             bNumEndpoints,
-             ..*self
+            bNumEndpoints,
+            ..*self
         }
     }
 
@@ -350,7 +333,7 @@ impl Interface {
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
-pub struct Endpoint { 
+pub struct Endpoint {
     bLength: u8,
     bDescriptorType: u8,
     bEndpointAddress: u8,
@@ -370,9 +353,9 @@ impl Endpoint {
         Self {
             bLength: size_of::<Endpoint>() as u8,
             bDescriptorType: constants::UsbDescriptorType::Endpoint as u8,
-            bEndpointAddress: 0x01, // EP1 OUT by default.
+            bEndpointAddress: 0x01,    // EP1 OUT by default.
             bmAttributes: 0b000000_10, // Bulk by default.
-            wMaxPacketSize: 64, // 64 byte max packet size for default.
+            wMaxPacketSize: 64,        // 64 byte max packet size for default.
             bInterval: 10, // Ignored except for Isoc/Interrupt endpoints. Polling interval in frames, 1 frame is 1ms must be 1 for isoc.
         }
     }
@@ -399,16 +382,13 @@ impl Endpoint {
     }
 
     pub const fn bInterval(&self, bInterval: u8) -> Self {
-        Self {
-            bInterval,
-            ..*self
-        }
+        Self { bInterval, ..*self }
     }
 }
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
-pub struct String0 { 
+pub struct String0 {
     bLength: u8,
     bDescriptorType: u8,
     wLANGID: &'static [u16],
@@ -416,7 +396,7 @@ pub struct String0 {
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C, packed)]
-pub struct String { 
+pub struct String {
     bLength: u8,
     bDescriptorType: u8,
     uString: &'static [u8],

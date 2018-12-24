@@ -55,7 +55,7 @@ impl Type {
     }
 
     pub fn from_bits(bits: u8) -> Option<Self> {
-        match bits >> 5 {
+        match (bits >> 5) & 0x03 {
             0b00 => Some(Type::Standard),
             0b01 => Some(Type::Class),
             0b10 => Some(Type::Vendor),

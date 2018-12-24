@@ -122,22 +122,19 @@ impl Device {
     }
 }
 
-//impl From<[u8; size_of::<Device>()]> for Device {
-//    #[inline]
-//    fn from(b: [u8; size_of::<Device>()]) -> Self {
-//        Self {
-//
-//        }
-//        //unsafe { transmute(b) }
-//    }
-//}
+impl From<[u8; size_of::<Device>()]> for Device {
+    #[inline]
+    fn from(b: [u8; size_of::<Device>()]) -> Self {
+        unsafe { transmute(b) }
+    }
+}
 
-//unsafe fn as_u8_arry<T: Sized>(ptr: &T) -> &[u8]
-//    where T: Sized {
-//    from_raw_parts(
-//        (ptr as *const T) as *const u8,
-//        size_of::<T>())
-//}
+pub unsafe fn as_u8_arry<T: Sized>(ptr: &T) -> &[u8]
+    where T: Sized {
+    from_raw_parts(
+        (ptr as *const T) as *const u8,
+        size_of::<T>())
+}
 
 //impl From<Device> for &[u8] {
 //    #[inline]
@@ -145,7 +142,7 @@ impl Device {
 //       unsafe { as_u8_arry(& a) }
 //    }
 //}
-
+//
 //impl From<Device> for [u8; size_of::<Device>()] {
 //    #[inline]
 //    fn from(a: Device) -> [u8; size_of::<Device>()] {

@@ -1,6 +1,8 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 
+use cortex_m_semihosting::{debug, hprintln};
+
 extern crate vcell;
 
 use self::vcell::VolatileCell;
@@ -25,8 +27,8 @@ pub struct PMA {
 
 impl PMA {
     pub fn zero(&mut self) {
-        for i in 0..PMA_SIZE {
-            self.pma_area.set_u8(i, 0);
+        for i in 0..PMA_SIZE/2 {
+            self.pma_area.set_u16(i, 0);
         }
     }
 }
@@ -46,8 +48,8 @@ impl Deref for PMA {
 
 #[repr(C)]
 pub struct PMA_Area {
-    bytes: [VolatileCell<u8>; PMA_SIZE],
-    //    words: [VolatileCell<u16>; PMA_SIZE / 2],
+    //bytes: [VolatileCell<u8>; PMA_SIZE],
+    words: [VolatileCell<u16>; PMA_SIZE / 2],
 }
 
 #[repr(C, packed)]
@@ -64,40 +66,59 @@ pub struct USB_EpBufferDescriptor {
 impl PMA_Area {
     //LSB first...
     pub fn get_u16(&self, offset: usize) -> u16 {
-        //self.words[offset/2].get()
-        (self.bytes[offset].get() as u16) | (((self.bytes[offset + 1].get() as u16) << 8) & 0xff00)
+        self.words[offset/2].get()
+        //((self.bytes[offset].get() as u16) & 0x00ff) | (((self.bytes[offset + 1].get() as u16) << 8) & 0xff00)
     }
 
     // LSB first...
     pub fn set_u16(&self, offset: usize, val: u16) {
-        self.bytes[offset].set((val & 0x00ff) as u8);
-        self.bytes[offset + 1].set((val >> 8 & 0x00ff) as u8);
+        self.words[offset/2].set(val)
+        //self.bytes[offset + 0].set((val & 0x00ff) as u8);
+        //self.bytes[offset + 1].set(((val >> 8) & 0x00ff) as u8);
     }
 
-    pub fn get_u8(&self, offset: usize) -> u8 {
-        self.bytes[offset].get()
-    }
-
-    pub fn set_u8(&self, offset: usize, val: u8) {
-        self.bytes[offset].set(val);
-    }
-
-    pub fn borrow_slice(&self, offset: usize, size: usize) -> &[VolatileCell<u8>] {
-        &self.bytes[offset..size]
-    }
-
-    pub fn get_buffer_descriptor(&self, offset: usize) -> &USB_EpBufferDescriptor {
-        unsafe { &*((&self.bytes as *const VolatileCell<u8>) as *const USB_EpBufferDescriptor) }
-    }
-
-    pub fn get_buffer_descriptor2(&self, offset: usize) -> &USB_EpBufferDescriptor {
-        let slice = self.borrow_slice(offset, size_of::<USB_EpBufferDescriptor>());
-        unsafe { &*((slice as *const [VolatileCell<u8>]) as *const USB_EpBufferDescriptor) }
-    }
-
+//    pub fn get_u8(&self, offset: usize) -> u8 {
+//        self.bytes[offset].get()
+//    }
+//
+//    pub fn set_u8(&self, offset: usize, val: u8) {
+//        self.bytes[offset].set(val);
+//    }
+//
+//    pub fn borrow_slice(&self, offset: usize, size: usize) -> &[VolatileCell<u8>] {
+//        &self.bytes[offset..size]
+//    }
+//
+//    pub fn get_buffer_descriptor(&self, offset: usize) -> &USB_EpBufferDescriptor {
+//        unsafe { &*((&self.bytes as *const VolatileCell<u8>) as *const USB_EpBufferDescriptor) }
+//    }
+//
+//    pub fn get_buffer_descriptor2(&self, offset: usize) -> &USB_EpBufferDescriptor {
+//        let slice = self.borrow_slice(offset, size_of::<USB_EpBufferDescriptor>());
+//        unsafe { &*((slice as *const [VolatileCell<u8>]) as *const USB_EpBufferDescriptor) }
+//    }
+//
     pub fn write_buffer_u8(&self, offset: usize, buf: &[u8]) {
+        let mut hword: [u8; 2] = [0; 2];
+
         for (off, val) in buf.iter().enumerate() {
-            self.set_u8(offset + off, *val);
+            if off % 2 == 0 {
+                hword[0] = *val;
+                // Is last byte?
+                if (off + 1) == buf.len() {
+                    hword[1] = ((self.get_u16(offset/2 + off/2) >> 8) & 0x00ff) as u8;
+                    let val16 = ((hword[0] as u16) & 0x00ff) | ((hword[1] as u16) << 8) & 0xff00;
+                    self.set_u16(offset + off, val16);
+                }
+            }
+
+            if off % 2 == 1 {
+                hword[1] = *val;
+                let val = ((hword[0] as u16) & 0x00ff) | ((hword[1] as u16) << 8) & 0xff00;
+                self.set_u16(offset + (off - 1), val);
+            }
+
+            //hprintln!("{:?}:{:x}, [{:x}, {:x}]", off, val, hword[0], hword[1]).unwrap();
         }
     }
 }

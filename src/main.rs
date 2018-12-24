@@ -107,8 +107,6 @@ fn main() -> ! {
         let exti = p.EXTI;
         let rcc = p.RCC;
 
-        hprintln!("{:?}", DEV_QUAL).unwrap();
-
         // Enable clock for SYSCFG
         rcc.apb2enr.modify(|_, w| w.syscfgen().set_bit());
 

@@ -1,5 +1,7 @@
 use crate::usb::pma::PMA;
 
+use core::cmp::min;
+
 use hal::gpio::gpioa::{PA11, PA12};
 use hal::gpio::{Alternate, AF0};
 use hal::prelude::*;
@@ -128,9 +130,9 @@ impl<PINS> Usb<USB, PINS> {
 
     fn reset(&mut self) {
         // Init EP0
-        self.pma.pma_area.set_u16(0, 0x40); // ADDR0_TX, buffer at offset 0x40 in PMA.
+        self.pma.pma_area.set_u16(0, 0x0040); // ADDR0_TX, buffer at offset 0x40 in PMA.
         self.pma.pma_area.set_u16(2, 0); // COUNT0_TX, 0 bytes in buffer
-        self.pma.pma_area.set_u16(4, 0x20); // ADDR0_RX, buffer at offset 0x20 in PMA.
+        self.pma.pma_area.set_u16(4, 0x0020); // ADDR0_RX, buffer at offset 0x20 in PMA.
         self.pma
             .pma_area
             .set_u16(6, (0x8000 | ((MAX_PACKET_SIZE / 32) - 1) << 10) as u16); // COUNT0_RX, Set buffer count.
@@ -174,6 +176,7 @@ impl<PINS> Usb<USB, PINS> {
         let index = self.pma.pma_area.get_u16(0x24); // Third...
         let length = self.pma.pma_area.get_u16(0x26); // Fourth...
 
+        //hprintln!("Decode: {:x}", request16).unwrap();
         // set COUNT0_RX to max acceptable size. fix hardcoded endpoint later
         self.pma
             .pma_area
@@ -206,18 +209,19 @@ impl<PINS> Usb<USB, PINS> {
                 UsbRequest::GetStatus,
             ) => {
                 self.usb.ep0r.toggle_tx_stall();
-                hprintln!("GET STATUS: {:x}", self.usb.ep0r.read().bits() as u16).unwrap();
+                //hprintln!("GET STATUS: {:x}", self.usb.ep0r.read().bits() as u16).unwrap();
             }
 
             (
                 (Some(Direction::OUT), Some(Type::Standard), Some(Destination::Device)),
                 UsbRequest::SetAddress,
             ) => {
-                hprintln!("Set Address: {:x}", value as u16).unwrap();
-                self.usb
-                    .daddr
-                    .modify(|_, w| unsafe { w.add().bits(value as u8) });
-
+                //hprintln!("Set Address: {:x}", value as u16).unwrap();
+//                self.usb
+//                    .daddr
+//                    .modify(|_, w| unsafe { w.add().bits(value as u8).ef().set_bit() });
+//
+                self.state = UsbState::Addressed(value as u8);
                 self.usb.ep0r.toggle_0();
             }
 
@@ -225,14 +229,24 @@ impl<PINS> Usb<USB, PINS> {
                 (Some(Direction::IN), Some(Type::Standard), Some(Destination::Device)),
                 UsbRequest::GetDescriptor,
             ) => {
-                hprintln!(
-                    "r: {:?}, v: {:x}, i: {:x}, l: {:x}",
-                    request,
-                    value,
-                    index,
-                    length
-                )
-                .unwrap();
+                let desc = unsafe{ as_u8_arry(&self.descriptors.Device) };
+                self.pma.pma_area.write_buffer_u8(0x40, desc);
+                self.pma
+                    .pma_area
+                    .set_u16(2, min(length, desc.len() as u16));
+                self.usb.ep0r.toggle_out();
+               
+                //hprintln!("v: {:x}, i: {:x}, l: {:x}", value, index, length).unwrap();
+
+//                hprintln!(
+//                    "rt: {:?}, r: {:?}, v: {:x}, i: {:x}, l: {:x}",
+//                    request_type,
+//                    request,
+//                    value,
+//                    index,
+//                    length
+//                )
+//                .unwrap();
             }
 
             // Fall though
@@ -243,8 +257,20 @@ impl<PINS> Usb<USB, PINS> {
     }
 
     fn tx(&mut self) {
-        hprintln!("TX").unwrap();
-        self.pma.pma_area.set_u16(6, 0); // Set COUNT0_RX to 0.
+        //hprintln!("TX").unwrap();
+        match self.state {
+            UsbState::Addressed(address) => {
+                self.usb
+                    .daddr
+                    .modify(|_, w| unsafe { w.add().bits(address).ef().set_bit() });
+
+                
+            },
+
+            _ => {
+                self.pma.pma_area.set_u16(6, 0); // Set COUNT0_RX to 0.
+            }
+        }
         self.usb.ep0r.toggle_tx_out();
     }
 
